@@ -7,8 +7,8 @@ import cv2
 from skimage import exposure
 from skimage.feature import canny
 from skimage.filters import threshold_local
-
-
+from scipy import ndimage, datasets
+from math import atan2, degrees
 
 
 
@@ -54,9 +54,37 @@ block_size = 35  # Adjust based on image size
 local_thresh = threshold_local(image_array, block_size, offset=10)
 binary_image = enhanced_image > local_thresh
 
-ax[4].imshow(binary_image, cmap='gray')
+# Convert Canny edges to uint8 format (required by OpenCV)
+edges_uint8 = (edges * 255).astype(np.uint8)
+
+# Apply Hough Line Transform
+lines = cv2.HoughLinesP(edges_uint8, rho=1, theta=np.pi/180, threshold=50, minLineLength=50, maxLineGap=10)
+
+# Convert original grayscale image to RGB for overlay
+image_with_lines = cv2.cvtColor(image_array, cv2.COLOR_GRAY2RGB)
+
+# Define angle threshold for horizontal lines
+angle_threshold = 10  # Acceptable deviation from 0° (horizontal)
+
+
+# Draw only horizontal lines
+if lines is not None:
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+
+        # Calculate the angle of the line
+        angle = degrees(atan2(y2 - y1, x2 - x1))  # Compute angle in degrees
+
+        # Keep only nearly horizontal lines
+        if abs(angle) < angle_threshold or abs(angle - 180) < angle_threshold:
+            cv2.line(image_with_lines, (x1, y1), (x2, y2), (255, 0, 0), 1)  # Draw in blue
+
+ax[4].imshow(image_with_lines, cmap='gray')
 ax[4].set_title('Canny')
 ax[4].set_axis_off()
+
+
+tlc_prewitt_h = ndimage.prewitt(image_array, axis=0);
 
 
 
