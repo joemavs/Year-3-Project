@@ -8,7 +8,7 @@ from skimage.feature import canny
 from math import atan2, degrees
 
 # Load image
-image_path = 'images/individual_tlc.jpg'
+image_path = 'images/tlc_1.jpg'
 tlc_image = imread(image_path)
 
 # Convert image into numpy array
@@ -84,7 +84,7 @@ lines = np.squeeze(cv2.HoughLinesP(edges_uint8, rho=1, theta=np.pi/180, threshol
 image_with_lines = ((rgb_array * 255).astype(np.uint8))
 
 # Define angle threshold to filter horizontal lines
-angle_threshold = 10
+angle_threshold = 5
 horizontal_lines = []  # List to store detected horizontal lines
 
 
@@ -98,9 +98,11 @@ if lines is not None:
 
         # Keep only lines that are nearly horizontal
         if abs(angle) < angle_threshold or abs(angle - 180) < angle_threshold:
+            print("Line", line, "\nangle is", angle)
+
             horizontal_lines.append(line)
 
-def grouplines(sortedlines):
+def grouplines(sortedlines, image_height):
     """
         Groups similar horizontal lines based on their y-coordinates.
 
@@ -128,11 +130,12 @@ def grouplines(sortedlines):
             if line_indexes[j] == "null" or i is j:
                 # Skip lines already processed or the same line
                 continue
-
-            # If the y-coordinates are within ±7 pixels, consider them similar
-            elif -7 < (sortedlines[j][1] - y_val) < 7:
+            # If the y-coordinates are within 2% of the image height, consider them similar
+            elif -(image_height/50) < (sortedlines[j][1] - y_val) < (image_height/50):
                 current_group.append(sortedlines[j])  # Add line to group
                 line_indexes[j] = "null"  # Mark as processed
+            else:
+                print("compared to", sortedlines[j][1])
 
         line_indexes[i] = "null"  # Mark the current line as processed
         groups.append(current_group)  # Save grouped lines
@@ -180,7 +183,7 @@ def drawlines(lines,image):
        image (numpy.ndarray): The image on which lines will be drawn.
        """
     for line in lines:
-        print("drawing line", line)
+        print("Line", line)
         x1, y1, x2, y2 = map(int, line)  # Ensure coordinates are integers
         cv2.line(image, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 1)  # Draw in blue
 
@@ -188,11 +191,20 @@ def drawlines(lines,image):
     plt.imshow(image)
     plt.show()
 
+def findimagedimensions(image_array):
+    image_shape = np.shape(image_array)
+    image_height = image_shape[0]
+    image_length = image_shape[1]
+    return image_height,image_length
+
+# Find dimensions of cropped image
+[image_height, image_length] = findimagedimensions(rgb_array)
+
 # Group horizontal lines
-groups = grouplines(horizontal_lines)
+groups = grouplines(horizontal_lines,image_height)
 
 # Merge similar lines
-lines = combinesimilarlines(groups,100)
+new_lines = combinesimilarlines(groups,image_length)
 
 # Draw the final set of lines on the image
-drawlines(lines,image_with_lines)
+drawlines(new_lines,image_with_lines)
